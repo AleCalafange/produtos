@@ -6,7 +6,15 @@ import (
 	"github.com/go-chi/chi/v5"
     "fmt"
     _ "github.com/mattn/go-sqlite3"
+    "strconv"
+    "encoding/json"
 )
+
+type StructProduto struct{
+    id int
+    produto string
+    valor float64
+}
 
 type Recurso struct {
     db *sql.DB
@@ -16,10 +24,8 @@ func(met Recurso) CriaProduto(w http.ResponseWriter, r *http.Request) {
     r.ParseForm()    
     produto := r.Form.Get("produto")
     valor := r.Form.Get("valor")
-    fmt.Println("Produto cadastrado", produto,"Valor cadastrado", valor)
-    w.Write([]byte("Você cadastrou corretamente"))
 
-    valor, err := strconv.Atoi("1230")
+    valorint, err := strconv.Atoi(valor)
     if err !=  nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         w.Header().Set("Error", err.Error())
@@ -31,20 +37,23 @@ func(met Recurso) CriaProduto(w http.ResponseWriter, r *http.Request) {
         fmt.Println(err)
         return
     }
-    _, err = query.Exec(produto,valor)
+    _, err = query.Exec(produto,valorint)
     if err != nil {
         fmt.Println(err)
         return
     }
+
+    fmt.Println("Produto cadastrado", produto,"Valor cadastrado", valor)
+    w.Write([]byte("Você cadastrou corretamente"))
 }
 
 func main() {
     db, err := sql.Open("sqlite3", "produtos.db")
-    criaTabelaProduto(db)
     if err != nil{
         fmt.Println(err)
         return
     }
+    criaTabelaProduto(db)
 
     resource := Recurso{db}
 
@@ -58,10 +67,10 @@ func main() {
 }
 
 func criaTabelaProduto(db *sql.DB){
-    produtos_tabela := `CREATE TABLE produtos (
+    produtos_tabela := `CREATE TABLE IF NOT EXISTS produtos (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "produto" TEXT,
-    "valor" FLOAT);`
+    produto TEXT,
+    valor FLOAT);`
     query, err := db.Prepare(produtos_tabela)
     if err != nil {
        fmt.Println(err)
@@ -77,6 +86,18 @@ func getProduto(w http.ResponseWriter, r *http.Request){
 }
 
 func listaProdutos(w http.ResponseWriter, r *http.Request){
-    w.Write([]byte("foi pro curl lista"))
-    fmt.Println("lista de produtos")
+    listadeProdutos := []StructProduto
+    rows, err := db.Query("SELECT id, produto, valor FROM produtos")
+    for rows.Next(){
+        var produto StructProduto
+        err := rows.Scan(&produto.id, &produto.produto, &produto.valor);
+        if err != nil{
+            return albums, err
+        }
+    listadeProdutos = append(listadeProdutos)
+    }
+    resultado := json.Marshal(listadeProdutos)
+
+    w.Write([]byte(resultado))
+    fmt.Println(resultado)
 }
