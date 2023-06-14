@@ -60,7 +60,7 @@ func main() {
     router := chi.NewRouter()
     router.Get("/getProduto", getProduto)
     router.Post("/criaProduto", resource.CriaProduto)
-    router.Get("/listaProdutos", listaProdutos)
+    router.Get("/listaProdutos", resource.listaProdutos)
 
     http.ListenAndServe(":3333", router)
 
@@ -85,19 +85,29 @@ func getProduto(w http.ResponseWriter, r *http.Request){
     fmt.Println("pega Produto")
 }
 
-func listaProdutos(w http.ResponseWriter, r *http.Request){
-    listadeProdutos := []StructProduto
-    rows, err := db.Query("SELECT id, produto, valor FROM produtos")
+func (met Recurso) listaProdutos(w http.ResponseWriter, r *http.Request){
+    listadeProdutos := []StructProduto{}
+    rows, err := met.db.Query("SELECT id, produto, valor FROM produtos")
+     if err !=  nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        w.Header().Set("Error", err.Error())
+    }
+
     for rows.Next(){
         var produto StructProduto
         err := rows.Scan(&produto.id, &produto.produto, &produto.valor);
-        if err != nil{
-            return albums, err
+        if err !=  nil {
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+                w.Header().Set("Error", err.Error())
+                return;
         }
-    listadeProdutos = append(listadeProdutos)
+        listadeProdutos = append(listadeProdutos)
     }
-    resultado := json.Marshal(listadeProdutos)
-
+    resultado, err := json.Marshal(listadeProdutos)
+     if err !=  nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        w.Header().Set("Error", err.Error())
+    }
     w.Write([]byte(resultado))
     fmt.Println(resultado)
 }
