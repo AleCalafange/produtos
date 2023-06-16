@@ -11,9 +11,9 @@ import (
 )
 
 type StructProduto struct{
-    id int
-    produto string
-    valor float64
+    ID int
+    PRODUTO string
+    VALOR float64
 }
 
 type Recurso struct {
@@ -58,7 +58,7 @@ func main() {
     resource := Recurso{db}
 
     router := chi.NewRouter()
-    router.Get("/getProduto", getProduto)
+    router.Get("/getProduto/{produtoID}",resource.getProduto)
     router.Post("/criaProduto", resource.CriaProduto)
     router.Get("/listaProdutos", resource.listaProdutos)
 
@@ -80,8 +80,38 @@ func criaTabelaProduto(db *sql.DB){
     fmt.Println("Tabela criada com sucesso")
 }
 
-func getProduto(w http.ResponseWriter, r *http.Request){
-    w.Write([]byte("Mostra Produto"))
+func (met Recurso) getProduto(w http.ResponseWriter, r *http.Request){
+    rotaID := chi.URLParam(r,"produtoID")
+    ativoID, err := strconv.Atoi(rotaID)
+    if err !=  nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        w.Header().Set("Error", err.Error())
+    }
+    armazenar := []StructProduto{}
+    rows, err := met.db.Query("SELECT id, produto, valor FROM produtos WHERE id=?;",ativoID)
+    if err != nil{
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        w.Header().Set("Error", err.Error())
+    }
+
+    for rows.Next(){
+        var produto StructProduto
+        err := rows.Scan(&produto.ID, &produto.PRODUTO, &produto.VALOR);
+        if err !=  nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            w.Header().Set("Error", err.Error())
+            return;
+        }
+        armazenar = append(armazenar,produto)
+    }
+
+    selecionado, err := json.Marshal(armazenar)
+    if err !=  nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        w.Header().Set("Error", err.Error())
+    }
+
+    w.Write([]byte(selecionado))
     fmt.Println("pega Produto")
 }
 
@@ -95,13 +125,13 @@ func (met Recurso) listaProdutos(w http.ResponseWriter, r *http.Request){
 
     for rows.Next(){
         var produto StructProduto
-        err := rows.Scan(&produto.id, &produto.produto, &produto.valor);
+        err := rows.Scan(&produto.ID, &produto.PRODUTO, &produto.VALOR);
         if err !=  nil {
             http.Error(w, err.Error(), http.StatusInternalServerError)
             w.Header().Set("Error", err.Error())
             return;
         }
-        listadeProdutos = append(listadeProdutos)
+        listadeProdutos = append(listadeProdutos, produto)
     }
     resultado, err := json.Marshal(listadeProdutos)
     if err !=  nil {
